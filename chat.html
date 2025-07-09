@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI智聊系统</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        :root {
+            --primary: #1890ff;
+            --dark-bg: #1f2d3d;
+            --light-bg: #f0f2f5;
+            --border: #dcdfe6;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--light-bg);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .app-container {
+            display: flex;
+            height: 100vh;
+        }
+        
+        /* 侧边栏样式 */
+        .sidebar {
+            width: 260px;
+            background-color: white;
+            box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            z-index: 10;
+        }
+        
+        .new-chat-btn {
+            margin: 16px;
+            padding: 10px 16px;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+        
+        .new-chat-btn:hover {
+            background-color: #40a9ff;
+        }
+        
+        .chat-history {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+        
+        .chat-item {
+            padding: 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-bottom: 6px;
+            transition: background-color 0.2s;
+        }
+        
+        .chat-item:hover, .chat-item.active {
+            background-color: #e6f7ff;
+        }
+        
+        .user-info {
+            padding: 16px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+        }
+        
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: #f0f2f5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+        }
+        
+        /* 主聊天区域 */
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .chat-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            font-size: 18px;
+            font-weight: 500;
+        }
+        
+        .message-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            background-color: white;
+        }
+        
+        .message {
+            margin-bottom: 16px;
+            max-width: 80%;
+        }
+        
+        .user-message {
+            margin-left: auto;
+            background-color: #e6f7ff;
+            padding: 10px 16px;
+            border-radius: 18px 18px 0 18px;
+        }
+        
+        .ai-message {
+            margin-right: auto;
+            background-color: #f0f2f5;
+            padding: 10px 16px;
+            border-radius: 18px 18px 18px 0;
+        }
+        
+        .message-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 10px;
+        }
+        
+        .input-area {
+            padding: 16px;
+            background-color: white;
+            border-top: 1px solid var(--border);
+            display: flex;
+        }
+        
+        .message-input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            outline: none;
+            font-size: 16px;
+        }
+        
+        .send-btn {
+            margin-left: 12px;
+            padding: 12px 24px;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+        
+        .send-btn:hover {
+            background-color: #40a9ff;
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 200px;
+            }
+            
+            .message {
+                max-width: 90%;
+            }
+        }
+        
+        /* 登录弹窗样式 */
+        .login-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .login-form {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            width: 350px;
+        }
+        
+        .login-form h2 {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .login-btn {
+            width: 100%;
+            padding: 12px;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        .loading-indicator {
+            display: inline-block;
+            margin-left: 10px;
+            font-size: 14px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- 登录弹窗 -->
+        <div v-if="!isLoggedIn" class="login-modal">
+            <div class="login-form">
+                <h2>登录AI聊天系统</h2>
+                <div class="form-group">
+                    <label>用户名</label>
+                    <input v-model="loginForm.username" type="text" placeholder="请输入用户名">
+                </div>
+                <div class="form-group">
+                    <label>密码</label>
+                    <input v-model="loginForm.password" type="password" placeholder="请输入密码">
+                </div>
+                <button @click="login" class="login-btn">登录</button>
+            </div>
+        </div>
+
+        <div class="app-container" v-if="isLoggedIn">
+            <div class="sidebar">
+                <button class="new-chat-btn" @click="newConversation">+ 新建对话</button>
+                <div class="chat-history">
+                    <div v-for="(conv, index) in conversations" 
+                         :key="index"
+                         :class="['chat-item', currentConversationId === conv.id ? 'active' : '']"
+                         @click="switchConversation(conv.id)">
+                        {{ conv.title }}
+                    </div>
+                </div>
+                <div class="user-info">
+                    <div class="avatar">👤</div>
+                    <div>{{ username }}</div>
+                </div>
+            </div>
+            
+            <div class="chat-container">
+                <div class="chat-header">
+                    {{ getConversationTitle() }}
+                </div>
+                
+                <div class="message-list">
+                    <div v-for="(message, index) in messages" :key="index" class="message">
+                        <div :class="message.role === 'user' ? 'user-message' : 'ai-message'">
+                            {{ message.content }}
+                            <span v-if="message.isLoading" class="loading-indicator">思考中...</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="input-area">
+                    <input 
+                        class="message-input" 
+                        v-model="inputText" 
+                        placeholder="输入消息..." 
+                        @keyup.enter="sendMessage" 
+                        :disabled="isSending"
+                    />
+                    <button 
+                        class="send-btn" 
+                        @click="sendMessage"
+                        :disabled="isSending || !inputText.trim()"
+                    >
+                        发送
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref, onMounted } = Vue;
+        
+        createApp({
+            setup() {
+                // 用户数据
+                const username = ref('测试用户');
+                const isLoggedIn = ref(false);
+                const loginForm = ref({
+                    username: '',
+                    password: ''
+                });
+                
+                // 对话数据
+                const conversations = ref([]);
+                const currentConversationId = ref(null);
+                
+                // 消息数据
+                const messages = ref([]);
+                const inputText = ref('');
+                const isSending = ref(false);
+                
+                // API连接点
+                const api = {
+                    // 保存消息到数据库
+                    saveMessageToDB: async (message) => {
+                        try {
+                            const response = await axios.post('http://localhost:8080/api/messages', {
+                                conversationId: currentConversationId.value,
+                                role: message.role,
+                                content: message.content
+                            });
+                            
+                            console.log("消息保存成功:", response.data);
+                            return response.data;
+                        } catch (error) {
+                            console.error("消息保存失败:", error);
+                            // 错误处理：显示用户提示
+                            messages.value.push({
+                                id: Date.now(),
+                                role: 'system',
+                                content: '⚠️ 消息保存失败，请检查网络连接'
+                            });
+                        }
+                    },
+                    
+                    // 加载对话历史
+                    loadConversationHistory: async (conversationId) => {
+                        try {
+                            const response = await axios.get(`http://localhost:8080/api/messages?conversationId=${conversationId}`);
+                            return response.data.map(msg => ({
+                                id: msg.id,
+                                role: msg.role,
+                                content: msg.content,
+                                createdAt: msg.createdAt
+                            }));
+                        } catch (error) {
+                            console.error("加载历史消息失败:", error);
+                            return [];
+                        }
+                    },
+                    
+                    // 腾讯混元API调用
+                    callTencentHunyuan: async (userInput) => {
+                        try {
+                            // 实际调用腾讯混元API
+                            const response = await axios.post(
+                                'https://api.tencent.com/hunyuan/chat', 
+                                {
+                                    appId: 'YOUR_APP_ID',
+                                    secretId: 'YOUR_SECRET_ID',
+                                    sessionId: currentConversationId.value,
+                                    messages: [{
+                                        role: 'user', 
+                                        content: userInput
+                                    }]
+                                },
+                                {
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+                                    }
+                                }
+                            );
+                            
+                            return response.data;
+                        } catch (error) {
+                            console.error("腾讯混元API调用失败:", error);
+                            throw error;
+                        }
+                    }
+                };
+                
+                // 核心业务函数
+                const getConversationTitle = () => {
+                    const conv = conversations.value.find(c => c.id === currentConversationId.value);
+                    return conv ? conv.title : '新对话';
+                };
+                
+                // 新建对话
+                const newConversation = async () => {
+                    try {
+                        // 调用后端API创建新对话
+                        const response = await axios.post('http://localhost:8080/api/conversations', {
+                            userId: 1, // 实际项目中从登录信息获取
+                            title: `新对话 ${conversations.value.length + 1}`
+                        });
+                        
+                        const newConv = response.data;
+                        conversations.value.push(newConv);
+                        currentConversationId.value = newConv.id;
+                        
+                        messages.value = [
+                            { 
+                                id: Date.now(), 
+                                role: 'ai', 
+                                content: '这是新的对话！请问有什么可以帮您的？' 
+                            }
+                        ];
+                    } catch (error) {
+                        console.error("创建对话失败:", error);
+                        messages.value.push({
+                            id: Date.now(),
+                            role: 'system',
+                            content: '⚠️ 创建新对话失败，请重试'
+                        });
+                    }
+                };
+                
+                // 切换对话
+                const switchConversation = (id) => {
+                    currentConversationId.value = id;
+                    api.loadConversationHistory(id).then(history => {
+                        if (history.length) {
+                            messages.value = history;
+                        } else {
+                            messages.value = [
+                                { id: Date.now(), role: 'ai', content: '已切换到本对话' }
+                            ];
+                        }
+                    });
+                };
+                
+                // 发送消息
+                const sendMessage = async () => {
+                    if (!inputText.value.trim() || isSending.value) return;
+                    
+                    isSending.value = true;
+                    
+                    // 1. 创建用户消息对象
+                    const userMessage = {
+                        id: Date.now(),
+                        role: 'user',
+                        content: inputText.value
+                    };
+                    
+                    // 2. 添加到当前消息列表
+                    messages.value.push(userMessage);
+                    inputText.value = '';
+                    
+                    // 3. 显示加载状态
+                    const loadingMsg = {
+                        id: Date.now() + 1,
+                        role: 'ai',
+                        content: '',
+                        isLoading: true
+                    };
+                    messages.value.push(loadingMsg);
+                    
+                    try {
+                        // 4. 保存用户消息到数据库
+                        await api.saveMessageToDB(userMessage);
+                        
+                        // 5. 调用腾讯混元API获取AI回复
+                        const response = await api.callTencentHunyuan(userMessage.content);
+                        
+                        // 6. 获取AI回复内容
+                        const aiResponse = response.choices[0].message.content;
+                        
+                        // 7. 创建AI消息对象
+                        const aiMessage = {
+                            id: Date.now() + 2,
+                            role: 'ai',
+                            content: aiResponse
+                        };
+                        
+                        // 8. 保存AI消息到数据库
+                        await api.saveMessageToDB(aiMessage);
+                        
+                        // 9. 替换加载消息为实际回复
+                        messages.value = messages.value.filter(msg => msg.id !== loadingMsg.id);
+                        messages.value.push(aiMessage);
+                        
+                    } catch (error) {
+                        console.error("消息处理失败:", error);
+                        
+                        // 10. 错误处理
+                        const errorMsg = {
+                            id: Date.now() + 3,
+                            role: 'ai',
+                            content: '抱歉，AI服务暂时不可用，请稍后再试'
+                        };
+                        
+                        messages.value = messages.value.filter(msg => msg.id !== loadingMsg.id);
+                        messages.value.push(errorMsg);
+                    } finally {
+                        isSending.value = false;
+                    }
+                };
+                
+                // 登录方法
+                const login = async () => {
+
+
+
+
+
+
+    // 添加测试账号（开发阶段使用）
+    if (loginForm.value.username === 'admin' && loginForm.value.password === '123') {
+        isLoggedIn.value = true;
+        username.value = loginForm.value.username;
+        
+        // 模拟用户对话数据
+        conversations.value = [
+            { id: 'test-conv-1', title: '测试对话 1' },
+            { id: 'test-conv-2', title: '测试对话 2' }
+        ];
+        
+        currentConversationId.value = 'test-conv-1';
+        messages.value = [
+            { id: Date.now(), role: 'ai', content: '这是测试账号的模拟对话，无需真实API连接' }
+       ];
+        
+        return; // 跳过实际API请求
+    }
+    
+    // 原有的登录代码...
+
+
+
+
+
+                    try {
+                        const response = await axios.post('http://localhost:8080/api/login', loginForm.value);
+                        const token = response.data.token;
+                        
+                        // 存储token
+                        localStorage.setItem('authToken', token);
+                        
+                        // 设置axios默认请求头
+                        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+                        
+                        // 更新登录状态
+                        isLoggedIn.value = true;
+                        username.value = loginForm.value.username;
+                        
+                        // 加载用户对话
+                        await loadUserConversations();
+                    } catch (error) {
+                        console.error("登录失败:", error);
+                        alert('登录失败，请检查用户名和密码');
+                    }
+                };
+                
+                // 加载用户对话
+                const loadUserConversations = async () => {
+                    try {
+                        const response = await axios.get('http://localhost:8080/api/conversations');
+                        conversations.value = response.data;
+                        
+                        if (conversations.value.length > 0) {
+                            currentConversationId.value = conversations.value[0].id;
+                            // 加载第一条对话的历史消息
+                            const history = await api.loadConversationHistory(currentConversationId.value);
+                            messages.value = history;
+                        }
+                    } catch (error) {
+                        console.error("加载对话列表失败:", error);
+                    }
+                };
+                
+                // 全局axios错误处理
+                axios.interceptors.response.use(
+                    response => response,
+                    error => {
+                        if (error.response) {
+                            // 401未授权错误处理
+                            if (error.response.status === 401) {
+                                localStorage.removeItem('authToken');
+                                isLoggedIn.value = false;
+                                alert('会话已过期，请重新登录');
+                            }
+                            // 其他错误处理
+                            else {
+                                console.error('API错误:', error.response.data);
+                            }
+                        } else {
+                            console.error('网络错误:', error.message);
+                        }
+                        return Promise.reject(error);
+                    }
+                );
+                
+                onMounted(async () => {
+                    // 检查本地是否有token
+                    const token = localStorage.getItem('authToken');
+                    if (token) {
+                        // 设置axios默认请求头
+                        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+                        
+                        try {
+                            // 验证token有效性
+                            await axios.get('http://localhost:8080/api/validate-token');
+                            
+                            // 更新登录状态
+                            isLoggedIn.value = true;
+                            
+                            // 获取用户名
+                            const userResponse = await axios.get('http://localhost:8080/api/user');
+                            username.value = userResponse.data.username;
+                            
+                            // 加载用户对话
+                            await loadUserConversations();
+                            
+                        } catch (error) {
+                            console.error("Token验证失败:", error);
+                            localStorage.removeItem('authToken');
+                        }
+                    }
+                });
+                
+                return {
+                    username,
+                    isLoggedIn,
+                    loginForm,
+                    conversations,
+                    currentConversationId,
+                    messages,
+                    inputText,
+                    isSending,
+                    getConversationTitle,
+                    newConversation,
+                    switchConversation,
+                    sendMessage,
+                    login
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
